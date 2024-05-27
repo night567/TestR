@@ -1,0 +1,1533 @@
+/****************************************************************************************************
+ * 源代码介绍：
+ * 1. 介绍
+ *     此前端代码采用了单页应用写法，即所有功能在一个页面中，所以我们仅有一个前端文件(index.js) 这个前端文件表现节点
+ * 的所有功能。大家可能会认为，代码写在了一起是不是很臃肿，代码很多很乱很长，其实不然，写在一起也是综合了各种因素权衡。
+ * 主要权衡指标为：开发者前端基础、改写代码习惯和后端转前端的同学，尽量避免this指针，不用理解call调用，能用一种整齐
+ * 划一的方式，让大家理解简单，上手方便。当你了解了代码的基本结构后你一定会觉得简单的不可思议。好处你一定会体会到。
+ * 非常不建议在节点应用中使用现在的多页面模式方案。
+ * 
+ * 2. 必备知识
+ * 2.1 react的运作模式
+ *    模型模型驱动视图改变，视图被监听修改模型，再次驱动视图改变。这种单向变化解决了节点所有功能。
+ *    模型模型驱动视图改变 -> 可以理解为视图在表现模型，在react中state变化了，会调用render方法重新渲染，即根据新模型重新画视图。
+ *    视图被监听修改模型 -> 视图可以添加各种监听事件 (click, mourseMove)等事件处理时修改模型，模型变化驱动了视图重新表现。
+ *    
+ *        ————————>>——————  
+ *        |               |
+ *       模型(state)     视图(render)
+ *        |               | 
+ *        --------<<-------
+ *        
+ * 2.2 平台的高阶组件
+ *    平台的高阶组件是 "props.组件.方法" 这种调用形式的组件，高阶组件最终底层还是 react 运作模式。
+ *    需要掌握高阶组件API，平台的高阶组件会经常用到。
+ * 
+ * 3. 代码的基本结构
+ *    代码中最核心3方法，分别是构造方法constructor方法，创建模型方法createState方法，渲染方法render方法。
+ *    当然还有其他的定义，比如监听事件处理，按钮状态控制方法，但是当你掌握了这3个最核心的方法，你基本及掌握了整个
+ *    页面的运作模式了。其他方法就一目了然了。
+ * 
+ * 3.1 constructor 
+ *   	constructor的作用为构造当前页面对象。主要职责为：
+ *   		1) 加载NC资源，如单据模板、按钮定义、修正模板的一些属性。
+ *   		2) 调用创建模型方法createState方法，构建页面的结构(核心方法)
+ *   		3) 保存和定义节点配置项，如节点编码，应用编码等。
+ * 
+ * 3.2 createState方法，render方法：
+ *   createState方法为创建模型方法，了解createState对了解了解页面整体右至关重要的作用的。
+ *   createState做了什么？ createState在根据页面的组件布置情况创建对应的结构性的模型，并且模型的结构与页面的结构
+ *   保持一致，这样非常方便了理解页面的整体情况，也非常变量的操作模型。
+ *   我们举个简单例子[列表卡片]节点：
+ *   我们先简单说明下这个节点，这个节点包含了2个部分，一个是列表的部分，一个是卡片的部分，并给他们起名字：列表模式，卡片模式。
+ *   显示列表模式时，不显示卡片模式，显示卡片模式时，不显示列表模式。
+ *   功能为列表卡片来回切换，列表模式中包含一个查询区、一个列表区，卡片模式中包含一个表单区。
+ *   下面我们来构建一个state:
+ *    state = {
+ *          showmode: 'list',    showmode表示为当前的显示模式，是列表模式，还是卡片模式，他可以有两个值 list,card分表表示
+ *          list: {              列表模式的配置，包含查询区配置对象，表格区配置对象
+ *             search:{          查询区配置
+ *                  area: ''     查询区的区域编码，你在模板中定义的编码是什么它就是什么  
+ *                  onSearch: fn 点击查询时候的处理函数
+ *             },
+ *             table:{           表格区配置
+ *                  area: ''     表格区的区域编码，你在模板中定义的编码是什么他就是什么
+ *                  onSelect: fn 点击选中时候的处理函数  
+ *             }
+ *          },
+ *          card:{               卡片模式的配置，包含了表单区的配置对象
+ *              form:{           表单区
+ *                  area:''      表单区的区域编码，你在模板中定义的编码是什么他就是什么
+ *                  onBeforeEdit:fn 表单编辑前的处理函数
+ *              }
+ *          } 
+ *    }
+ *    以上我们就构建一个state,从这个state中，我们可以看到我们页面的模型全貌。
+ *    下面我们来看render方法：
+ *    render方法的中，主要是渲染组件到页面，我们根据什么来渲染页面，根据上面构建的state模型来渲染。
+ *    render = () =>{
+ *          var renderList = () =>{ // 渲染列表模式的是的页面
+ *          }
+ *          var renderCard = () =>{ // 渲染卡片模式的是的页面
+ *          }
+ *    }
+ *    我们应该怎么判断渲染的是列表 还是卡片呢，我们通过state.showmode来确定
+ *    根据showmode的当前值的状态来判断是调用 renderList还是renderCard
+ *    这样当我们重新设置模型的值(setState)就能够借助React的机制(见react的运作模式)驱动视图变化了(setState会驱动调用render)
+ *    所以我们可以这样写：
+ *     render = () =>{
+ *          var renderList = () =>{ //渲染列表模式的是的页面，
+ *          }
+ *          var renderCard = () =>{ //渲染卡片模式的是的页面，
+ *          }
+ *          return this.state.showmode == 'list' ? renderList() : renderCard();
+ *    }
+ *    是不是非常简单，当我们要在列表和卡片模式中切换时，我们只需要 setState (showmode:'list'或者'card')
+ *    就可以在列表和卡片间来回切换了，非常便利，再也不用什么缓存了，而且切换时也不需要加载什么模板，非常快捷。
+ *       
+ *    那么renderList方法里面是怎么写的呢，也非常简单，我们再看一下state里面list的定义
+ *    我们就可以根据list里面的定义写renderList了，state结构和render结构保持了一致
+ *          list: {             列表模式的配置，包含查询区配置对象，表格区配置对象
+ *             search:{         查询区配置
+ *                  area: ''    查询区的区域编码，你在模板中定义的编码是什么他就是什么  
+ *                  onSearch:fn 点击查询时候的处理函数
+ *             },
+ *             table:{          表格区配置
+ *                  area: ''    表格区的区域编码，你在模板中定义的编码是什么他就是什么
+ *                  onSelect: fn 点击选中时候的处理函数  
+ *             }
+ *          },
+ *    renderList方法内部写法例子
+ *           var renderList = () =>{ //渲染列表模式的是的页面，
+ *              var {search, table } = this.state.list; //我们解构list里面的两个模型对象，就是search查询区的配置，table表格配置
+ *                 return <div>
+ *                  {this.props.search.NCCreateSearch(search.area, search)}
+ *                   {this.props.table.createSimpleTable(table.area, table)}
+ *                </div>
+ *          }
+ *    这样我们的列表界面就做完了，很简单卡片模式也是和类似
+ *    var renderCard = () =>{ // 渲染卡片模式的是的页面，
+ *           var { form } = this.card; // 我们解构card里面的两个模型对象，就是search查询区的配置，table表格配置
+ *          return <div>
+ *                  {this.props.search.form(form.area, form)}
+ *          </div>
+ *    }
+ * 
+ *    现在我们看一下完整的例子代码，并进行一些总结：
+ *    createState = () => {
+ *      var state = {
+ *          showmode: 'list',   showmode表示为当前的显示模式，是列表模式，还是卡片模式，他可以有两个值list,card分表表示
+ *          list: {             列表模式的配置，包含查询区配置对象，表格区配置对象
+ *             search:{         查询区配置
+ *                  area: ''    查询区的区域编码，你在模板中定义的编码是什么他就是什么  
+ *                  onSearch:fn 点击查询时候的处理函数
+ *             },
+ *             table:{          表格区配置
+ *                  area: ''    表格区的区域编码，你在模板中定义的编码是什么他就是什么
+ *                  onSelect: fn 点击选中时候的处理函数  
+ *             }
+ *          },
+ *          card:{              卡片模式的配置，包含了表单区的配置对象
+ *              form:{          表单区
+ *                  area:''     表单区的区域编码，你在模板中定义的编码是什么他就是什么
+ *                  onBeforeEdit:fn 表单编辑前的处理函数
+ *              }
+ *          } 
+ *      }
+ *    }
+ *    render = () => {
+ *          var renderList = () =>{ 
+ *              var {search, table } = this.state.list; // 我们解构list里面的两个模型对象，就是search查询区的配置，table表格配置
+ *                 return <div>
+ *                  {this.props.search.NCCreateSearch(search.area, search)}
+ *                  {this.props.table.createSimpleTable(table.area, table)}
+ *                </div>
+ *          }
+ *          var renderCard = () =>{ 
+ *               var { form } = this.card; // 我们解构card里面的两个模型对象，就是search查询区的配置table表格配置
+ *                return <div>
+ *                  {this.props.search.form(form.area, form)}
+ *                </div>
+ *          }
+ *          return this.state.showmode == 'list' ? renderList() : renderCard();
+ *    }
+ *    
+ *    总结：
+ *      代码state和render渲染的模型结构上是一致，这样我们能很快构建我们的页面，并非常容易修改，
+ *      我们只需要修改我们的模型，就可以操控我们的页面了， 渲染只是在表现我们的模型。
+ ****************************************************************************************************/
+import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
+import { Utils } from './Utils';
+
+// ============= 导入高阶组件区 ==============
+import { createPage, base, ajax, toast, promptBox, high } from 'nc-lightapp-front';
+// 审批流相关
+let { ApproveDetail, ApprovalTrans } = high; // 审批详情和指派组件
+// 导入导出相关
+import { excelImportconfig } from 'nc-lightapp-front';
+const { ExcelImport: ExcelOutput } = high;
+// 打印输出相关
+import { print } from 'nc-lightapp-front';
+const { PrintOutput } = high;
+// 附件管理相关
+let { NCUploader } = high;
+
+
+// ============= 导入基础组件区 ==============
+const { NCDiv } = base;
+const { NCButton } = base;
+
+
+// ============= 基本变量定义区 ==============
+const EMPTY_FN = () => { }; // 空函数
+const EDITMODE_ADD = 'add'; // 新增态
+const EDITMODE_EDIT = 'edit'; // 编辑态
+const EDITMODE_BROWSE = 'browse'; // 浏览态
+
+
+// ============= 自定义常量区 ================
+const FIELDS = { // 实体关键字段编码
+    PRIMARYKEY: 'pk_talent_pool', // 主键
+    BILLCODE: 'code', // 单据号(编码)
+    TRANSTYPE: 'transtype', // 交易类型
+    TRANSTYPEPK: 'transtypepk', // 交易类型PK
+    APPROVESTATUS: 'approvestatus', // 审批状态
+};
+const ACTIONS = {                   // 按钮编码
+    ADD: 'Add',                     // 新增
+    EDIT: 'Edit',                   // 修改
+    DELETE: 'Delete',               // 删除
+    SAVE: 'Save',                   // 保存
+    CANCEL: 'Cancel',               // 取消
+    REFRESH: 'Refresh',             // 刷新
+    COMMIT: 'Commit',               // 提交
+    UNCOMMIT: 'UnCommit',           // 收回
+    APPROVEDETAIL: 'ApproveDetail', // 审批详情
+    IMPORT: 'Import',               // 导入
+    EXPORT: 'Export',               // 导出
+    PRINT: 'Print',                 // 打印
+    OUTPUT: 'Output',               // 输出
+    ATTACHMENT: 'Attachment',       // 附件
+}
+const URLS = { // 后台请求路径
+    AddUrl: '/nccloud/ydrc/talentpool/AddTalentPoolAction.do', // 新增时请求默认值 Action
+    SaveUrl: '/nccloud/ydrc/talentpool/SaveTalentPoolAction.do', // 保存 Action
+    QueryUrl: '/nccloud/ydrc/talentpool/ListTalentPoolAction.do', // 查询 Action
+    printUrl: '/nccloud/ydrc/talentpool/PrintTalentPoolAction.do', // 打印输出
+    AuditUrl: '/nccloud/ydrc/talentpool/PFlowTalentPoolAction.do', // 审批流相关请求
+    ListUrl: '/nccloud/ydrc/talentpool/ListTalentPoolDefDocAction.do',//获取人才标签URL
+    AddTagUrl: '/nccloud/ydrc/talentpool/AddTalentTagAction.do',//获取人才标签URL
+
+}
+
+// 外部定义 Table 组件
+class Table extends Component {
+    state = {
+        data: [],
+    };
+
+    componentDidMount() {
+        this.fetchData();
+    }
+
+    fetchData = () => {
+        ajax({
+            url: URLS.ListUrl,
+            success: (res) => {
+
+                const transformedData = this.transformData(res.data);
+                this.setState({ data: transformedData });
+                // 传递数据给父组件
+                if (this.props.dataCallback) {
+                    this.props.dataCallback(transformedData);
+                }
+            },
+        });
+    };
+
+    transformData = (data) => {
+        return data.map((item) => ({
+            id: parseInt(item[0]),
+            label: item[1],
+            checked: false,
+        }));
+    };
+
+    handleCheckboxChange = (id) => {
+        this.setState((prevState) => {
+            const newData = prevState.data.map((item) =>
+                item.id === id ? { ...item, checked: !item.checked } : item
+            );
+            // 调用回调函数传递更新后的数据
+            if (this.props.dataCallback) {
+                this.props.dataCallback(newData);
+            }
+            return { data: newData };
+        });
+    };
+
+    renderTableHeader = () => {
+        return (
+            <thead>
+                <tr style={{ borderBottom: '1px solid #333' }}>
+                    <th style={{ textAlign: 'center', padding: '8px', border: '1px solid #333', width: "50px" }}>选中</th>
+                    <th style={{ textAlign: 'center', padding: '8px', border: '1px solid #333', width: "100px" }}>标签编码</th>
+                    <th style={{ textAlign: 'center', padding: '8px', border: '1px solid #333', width: "150px" }}>标签名</th>
+                </tr>
+            </thead>
+        );
+    };
+
+    renderTableBody = () => {
+        return (
+            <tbody>
+                {this.state.data.map((item, index) => (
+                    <tr
+                        key={item.id}
+                        style={{
+                            borderBottom: '1px solid #333',
+                            backgroundColor: index % 2 === 0 ? '#f2f2f2' : 'white',
+                        }}
+                    >
+                        <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #333', width: "50px" }}>
+                            <input
+                                type="checkbox"
+                                checked={item.checked}
+                                onChange={() => this.handleCheckboxChange(item.id)}
+                            />
+                        </td>
+                        <td style={{ textAlign: 'center', padding: '8px', border: '1px solid #333', width: "100px" }}>{item.id}</td>
+                        <td style={{ textAlign: 'center', padding: '8px', border: '1px solid #333', width: "150px" }}>{item.label}</td>
+                    </tr>
+                ))}
+            </tbody>
+        );
+    };
+
+    render() {
+        return (
+            <div style={{ position: 'relative', height: '400px', overflowY: 'auto' }}>
+                <table
+                    style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        position: 'sticky',
+                        top: 0,
+                        backgroundColor: 'white',
+                        zIndex: 1,
+                        border: '1px solid #ddd',
+                    }}
+                >
+                    {this.renderTableHeader()}
+                </table>
+                <table
+                    style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        marginTop: '-1px',
+                        border: '1px solid #ddd',
+                    }}
+                >
+                    {this.renderTableBody()}
+                </table>
+            </div>
+        );
+    }
+}
+
+
+
+/**
+ * 人才池搭建节点
+ * @author 代码生成工具
+ * @version NCC2005
+ */
+class ApplicationPage extends Component {
+
+    /**
+     * 构造方法：js要求的必须方法，构造整个页面对象
+     * 此方法构造时，会定义全局配置，this.config,方便其他方法取用
+     * 同时，也处理了加载模板，按钮，设置模板按钮功能，最终通过调用
+     * pageReady(此方法可以加入你的业务逻辑)完成第一次页面数据加载
+     * 此方法中，会调用initButton,initMeta 来初始化模板和按钮
+     * initButton,initMeta,pageReady 仅在页面打开时调用一次
+     * 其他时候不再调用
+     * @param {*} props
+     */
+    constructor(props) {
+        super(props);
+
+        /**
+         * 节点全局变量定义
+         * 包含页面编码、应用编码、标题、模块名等
+         */
+        this.config = {
+            domainName: 'ydrc', // 模块域名
+            moduleName: 'ydrc', // 模块编码
+            title: props.getSearchParam('n') || '人才池搭建', // 标题
+            appcode: props.getSearchParam('c') || 'appcode未定义', // 应用编码
+            pagecode: props.getSearchParam('p') || 'pagecode未定义', // 页面编码
+            billType: 'TEST001' // 单据类型
+        };
+        this.handleDataCallback = this.handleDataCallback.bind(this);
+        /**
+         * 创建state模型
+         * state中定义的数据模型跟render()方法中的组件一一对应
+         */
+        this.state = this.createState();
+
+
+        /**
+         * 加载NCC资源
+         * 1.包含单据模板、按钮等平台定义的资源
+         * 2.加载多语资源文件
+         * 3.加载需要在代码总用到参照js
+         */
+        Utils.loadNCCResource({
+            props: props,
+            ...this.config,
+            moduleId: 'WXHX0216', // 多语模块
+            domainName: this.config.domainName, // 多语文件名
+            callback: (data) => {
+                let { context, template, button, lang, refer = {} } = data;
+                let meta = this.initMeta(template); // 修改后的模板
+                let buttons = this.initButton(button); // 修改后的按钮
+                // 当前用户业务设置中的默认业务单元
+                this.defaultOrg = context.pk_org ? { value: context.pk_org, display: context.org_Name } : undefined;
+                Promise.all([
+                    new Promise(resolve => this.props.meta.setMeta(meta, () => resolve(true))), // 设置模板
+                    new Promise(resolve => this.props.button.setButtons(buttons, () => resolve(true))) // 设置按钮
+                ]).then(() => {
+                    this.setState({ isPageReady: true }, () => {
+                        // 导入按钮适配
+                        let { moduleName, appcode, pagecode } = this.config;
+                        let billType = this.state.excelOutput.billType;
+                        let excelimportconfig = excelImportconfig(this.props, moduleName, billType, true, '', { appcode: appcode, pagecode: pagecode }, () => {
+                            this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 导入后重新加载数据
+                        });
+                        this.props.button.setUploadConfig(ACTIONS.IMPORT, excelimportconfig);
+                        this.updateBtnStatus(); // 更新按钮状态
+                        this.pageReady(); // 页面信息加载完后加载表格数据
+                    });
+                }).catch((e) => {
+                    throw new ReferenceError(e);
+                });
+            }
+        });
+    }
+
+    /**
+     * pageReady方法为页面已经完全设置完毕
+     * 可以做一些初始的功能，比如：查询列表数据
+     */
+    pageReady = () => {
+        // 加载表格数据  -> 将数据设置到表格上  -> 更新按钮状态
+        this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus));
+    }
+
+    /**
+     * 初始化平台定义的单据模板
+     * 触发时机：执行loadNCCResource,加载完模板、多语、等初始化信息之后触发
+     * 功能：对加载完的模板进行个性化调整
+     * 可实现举例功能:
+     * 1.参照表单联动过滤：参见[Demo1]
+     * 2.处理表格操作列：参见[Demo2]
+     * @param {*} meta 
+     */
+    initMeta = (meta) => {
+
+        // saga 开头的字段全部隐藏
+        meta[this.state.table.area].items.filter(item => {
+            if (item.attrcode.startsWith('saga')) {
+                item.visible = false;
+                item.disabled = true;
+            }
+        });
+
+        /*
+         * Demo[1]参照过滤
+         * 场景描述： 表单上同时有部门、组织两个字段，部门受组织过滤，部门选择时，受到选择的组织进行部门参照过滤。
+         * 达成效果： 组织不选时，部门加载全部；组织选择，部门加载的数据时该组织下的部门。
+         * 写法解释： 见下面代码注释
+         * 代码示例:
+         */
+        // 主组织权限过滤 : 加载的是当前登录人有权限的组织
+        meta[this.state.table.area].items.find(item => {
+            if (item.attrcode == "pk_org") {
+                item.queryCondition = () => {
+                    return { // 参照过滤条件
+                        AppCode: this.config.appcode,
+                        TreeRefActionExt: 'nccloud.web.refer.sqlbuilder.PrimaryOrgSQLBuilder' // 组织权限过滤自定义SqlBuilder类全名
+                    }
+                };
+            }
+        });
+
+        // 交易类型要根据单据类型编码过滤
+        let transPKItem = meta[this.state.table.area].items.find(item => item.attrcode == FIELDS.TRANSTYPEPK); // 交易类型
+        transPKItem.queryCondition = () => {
+            return { parentbilltype: this.config.billType }
+        }
+
+        /**
+         * Demo[2]处理表格操作列
+         * 场景描述： 高阶组件simpleTable或者cardTable需要追加操作列
+         * 达成效果： simpleTable或者cardTable, 增加操作列，操作列中包含一些定义的按钮
+         * 写法解释： 见代码注释
+         * 代码示例:
+         */
+        let operation_column = { // 表格操作列
+            key: 'opr', // 操作列 key
+            attrcode: 'opr', // 操作列编码
+            label: '操作', // 操作列名称
+            visible: true,
+            fixed: 'right', // 固定到右侧
+            itemtype: 'customer',
+            render: (text, record, index) => {
+                let btns = [ACTIONS.DELETE]; // 行按钮
+                let approveStatus = record.values[FIELDS.APPROVESTATUS].value || ''; // 审批状态
+                btns = approveStatus == '-1' ? [ACTIONS.DELETE, ACTIONS.COMMIT] : [ACTIONS.UNCOMMIT, ACTIONS.APPROVEDETAIL];
+                // 渲染操作列按钮
+                return this.props.button.createOprationButton(btns,
+                    {
+                        area: 'table_inner', // 表体行按钮区域编码
+                        buttonLimit: 3,
+                        onButtonClick: (props, id) => this.onButtonClick(props, id, record, index) // 表体行按钮点击事件
+                    }
+                );
+            }
+        };
+        let tableid = this.state.table.area;
+        meta[tableid].items.push(operation_column); // 操作列添加到表格中
+        return meta;
+    }
+
+    /**
+     * 初始化平台定义的按钮
+     * 功能：对加载完的按钮进行个性化调整
+     * @param button
+     */
+    initButton = (button) => {
+        // 表头common区注册的按钮复制一份并修改区域编码，当作表体行按钮用。应用注册不用再注册一份。
+        let tableBtns = JSON.parse(JSON.stringify(button.filter(btn => btn.area == 'common')));
+        tableBtns.forEach(btn => btn.area = 'table_inner');
+        return [...button, ...tableBtns];
+    }
+    getTableData = () => {
+        // 获取Table的state中的data变量
+        return this.table.state.data;
+    }
+    updateState = (newA) => {
+        this.setState({ arrData: newA });
+    };
+    /**
+     * 创建state模型
+     * state的模型结构于页面结构是一致的，请优先阅读开头的说明 3.2 createState方法，render方法
+     * state中得必有并且常用得属性
+     * isPageReady: 页面是否可以进行渲染，构造函数会异步请求模板，所以构造函数执行完成后
+     *              React在构造函数执行完后会立即调用render方法渲染页面，此时可能模板还没有加载完成
+     *              所以通过此属来标记模板等初始化数据是否加载完成。加载完成后 isPageReady=true
+     *              才开始正式得渲染页面，参考render方法这种对isPageReady的使用。
+     * showmode：   页面当前的显示模型，SHOWMODE为前缀的常量定义，你的应用有几个页面的，就有几个SHOWMODE的常量定义
+     *              分别对应不同页面，比如：主从页面中(不带插件) 有列表和卡片两个页面，则会使用到SHOWMODE_LIST
+     *              SHOWMODE_CARD, render方法的中根据showmode值，来具体渲染页面。
+     * editmode:    页面当前编辑模式，有两种状态，EDITMODE为前传的常量定义EDITMODE_BROWSE,EDITMODE_EDIT;
+     *              高阶组件的中的编辑状态与它保持一致的。当设置或改变editmode时高阶组件的状态也要随之变化如 form formlist
+     * 模型结构定义说明：建议优先阅读开头的说明3.2 createState方法，render方法
+     */
+    createState = () => {
+        let state = {
+            isPageReady: false, // 页面信息（模板、按钮）是否加载完
+            editmode: EDITMODE_BROWSE, // 页面状态，默认浏览态
+            arrData: [],
+            head: { // 表头区域
+                initShowBackBtn: false, // 是否显示返回按钮
+                title: this.config.title, // 单据标题
+            },
+            headBtn: { // 表头按钮区域
+                area: 'common', // 按钮区域编码
+                buttonLimit: 3,
+                onButtonClick: this.onButtonClick // 按钮点击事件
+            },
+            search: { // 查询区
+                area: 'TalentPool_query', // 查询区域编码
+                clickSearchBtn: () => { // 查询按钮事件
+                    this.loadTableData((data) => { // 加载表格数据
+                        this.setTableData(data, this.updateBtnStatus); // 设置表格数据并更新按钮状态
+
+                        let tableid = this.state.table.area;
+                        let length = data && data[tableid] && data[tableid].allpks && data[tableid].allpks.length || 0; // 查到单据个数
+                        toast({ // 点击查询按钮提示语
+                            color: length > 0 ? 'success' : 'warning',
+                            content: length > 0 ? ('查询成功，共' + length + '条') : '未查询到符合条件的数据'
+                        });
+                    });
+                },
+                renderCompleteEvent: () => { // 查询区渲染完后回调事件
+                    // 查询区设置当前用户业务设置中的默认业务单元
+                    if (this.defaultOrg) {
+                        let orgValue = [
+                            { field: 'pk_org', oprtype: '=', value: { firstvalue: this.defaultOrg.value }, display: this.defaultOrg.display },
+                        ];
+                        this.props.search.setSearchValue(this.state.search.area, orgValue);
+                    }
+                }
+            },
+            table: { // 表格区域
+                area: 'TalentPool_table', // 表格区域编码
+                useFixedHeader: true,
+                adaptionHeight: true, // 自动托底
+                showIndex: true, // 显示序号
+                showCheck: true, // 显示复选框
+                showPagination: true, // 显示分页器
+                onSelected: this.onSelected, // 选中行事件
+                onSelectedAll: this.onSelectedAll, // 选中所有行事件
+                onBeforeEvent: this.onBeforeEvent, // 编辑前事件
+                onAfterEvent: this.onAfterEvent, // 编辑后事件
+                handlePageInfoChange: () => { // 页器操作的回调函数
+                    // 加载表格数据  -> 将数据设置到表格上  -> 更新按钮状态
+                    this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus));
+                }
+            }
+        };
+        let dataArr = {}
+        // 审批流相关
+        Utils.apply(state, {
+            approveDetail: { // 审批详情
+                show: false, // 是否显示
+                billid: undefined, // 查询审批详情单据主键
+                billtype: undefined, // 单据类型编码
+                close: () => { // 关闭事件回调函数
+                    this.state.approveDetail.show = false;
+                    this.setState(this.state);
+                }
+            },
+            approvalTrans: { // 指派
+                title: '指派', // 指派弹框标题
+                data: {}, // 指派弹框数据
+                display: false, // 是否显示
+                getResult: this.onAssignCommit, // 指派弹框提交事件
+                cancel: () => { // 取消按钮事件
+                    this.state.approvalTrans.display = false;
+                    this.setState(this.state);
+                }
+            }
+        });
+        // 附件管理相关
+        Utils.apply(state, {
+            ncUploader: {
+                show: false, // 是否显示
+                billId: undefined, // 附件唯一标识：单据主键
+                onHide: () => { // 关闭附件弹框回调函数
+                    this.state.ncUploader.show = false;
+                    this.setState(this.state);
+                }
+            }
+        });
+        // 打印输出相关
+        Utils.apply(state, {
+            printOutput: {
+                ref: 'printOutput',
+                url: URLS.printUrl,
+                data: {
+                    funcode: this.config.appcode, // 应用编码
+                    oids: [],
+                    nodekey: 'WXHX021601', // 输出模板设置中的应用标识
+                    outputType: 'output'
+                }
+            }
+        });
+        // 导入导出相关
+        Utils.apply(state, {
+            excelOutput: {
+                moduleName: this.config.moduleName, // 模块编码
+                billType: 'TALENTPOOL_WXHX0216', // Excel导入导出XML文件名
+                selectedPKS: [], // 导出单据的主键
+                appcode: this.config.appcode, // 应用编码
+                pagecode: this.config.pagecode, // 页面编码
+            }
+        });
+
+
+
+        return state;
+    }
+    // 添加回调函数
+    handleDataCallback = (data) => {
+        this.setState({ tableData: data });
+    };
+    componentDidMount() {
+        Utils.apply(this.state, {
+            modal: {
+                title: '人才标签',
+                className: 'modalapp-demo',
+                content: <Table dataCallback={this.handleDataCallback} />,
+                beSureBtnClick: () => {
+                    // 处理确认按钮点击逻辑
+                    console.log('确认按钮被点击');
+                    let tableid = this.state.table.area;
+                    let selectedData = this.props.editTable.getCheckedRows(tableid); // 选中数据
+                    console.log(selectedData);
+                    let numbersArray = [];
+                    selectedData.forEach((item) => {
+                        console.log(item.data.values.pk_talent_pool.value);
+                        numbersArray.push(item.data.values.pk_talent_pool.value);
+                    });
+
+                    console.log("!!!!!!!!!!!!!!!!!!!!!!");
+
+                    // 获取 Table 组件的 data 数据
+                    const tableData = this.state.tableData;
+                    console.log(tableData);
+                    console.log("!!!!!!!!!!!!!!!!!!!!!!");
+
+                    ajax({
+                        url: URLS.AddTagUrl,
+                        data: {
+                            ids: numbersArray,
+                            numbers: tableData,
+                        },
+                        success: (res) => {
+                            console.log(res);
+                        },
+                    });
+                    this.loadTableData();
+                    // window.location.href = window.location.href; // 刷新当前页面
+                }
+            }
+        });
+    }
+    /** 渲染方法 */
+    render() {
+
+        if (!this.state.isPageReady) {
+            return ''; // 页面信息未加载完不渲染页面
+        }
+
+        /** 渲染单表应用页面 */
+        let renderList = () => {
+            let { showmode, editmode, head, headBtn, search, table } = this.state;
+            return (
+                <div className="nc-single-table">
+                    <NCDiv className="nc-singleTable-header-area" areaCode={NCDiv.config.HEADER}>
+                        {/* 表格头部 */}
+                        <div className="header-title-search-area">
+                            {this.props.BillHeadInfo.createBillHeadInfo({ ...head })}
+                        </div>
+                        {/* 按钮区 */}
+                        <div className="header-button-area">
+                            {this.props.button.createButtonApp({ ...headBtn })}
+                        </div>
+                    </NCDiv>
+
+                    {/* 查询区 (浏览态显示)*/}
+                    {editmode == EDITMODE_BROWSE && <div className="nc-singleTable-search-area">
+                        {this.props.search.NCCreateSearch(search.area, { ...search })}
+                    </div>}
+
+                    <div className='nc-singleTable-table-area'> {/* 列表区 */}
+                        {this.props.editTable.createEditTable(table.area, { ...table })}
+                    </div>
+                </div>
+            );
+        }
+
+        /** 渲染审批流相关组件 */
+        let renderApproveInfo = () => {
+            let { approveDetail, approvalTrans } = this.state;
+            return (
+                <div>
+                    {approveDetail.show && <ApproveDetail {...approveDetail} />} {/* 审批详情 */}
+                    {approvalTrans.display && <ApprovalTrans {...approvalTrans} />} {/* 审批流指派 */}
+                </div>
+            );
+        }
+
+        /** 渲染附件管理组件 */
+        let renderUploader = () => {
+            let { ncUploader } = this.state;
+            return ncUploader.show ? (<div><NCUploader {...ncUploader} /></div>) : ''; {/* 附件管理 */ }
+        }
+
+        /** 渲染打印输出组件 */
+        let renderPrintOutput = () => {
+            let { printOutput } = this.state;
+            return (
+                <div>
+                    <PrintOutput {...printOutput} /> {/* 打印输出 */}
+                </div>
+            );
+        }
+
+        /** 渲染Excel导出导出组件 */
+        let renderExcelOutput = () => {
+            let { excelOutput } = this.state;
+            return (
+                <div>
+                    <ExcelOutput {...Object.assign(this.props)} {...excelOutput} /> {/* Excel 导入导出 */}
+                </div>
+            );
+        }
+        return (
+            <div>
+                {renderList()}
+                {renderApproveInfo()}
+                {renderUploader()}
+                {renderPrintOutput()}
+                {renderExcelOutput()}
+                {
+                    this.props.modal.createModal('demoModal', this.state.modal)
+                }
+            </div>
+        );
+    }
+
+    // ============= 功能性方法区 =============
+    // 职责单一的方法写在这里。多个功能方法可以组装成流程方法，实现某种业务操作。
+    // 如：流程方法【查询表格数据】由【加载表格数据】【填充表格数据】等两个职责单一的方法组装而成。
+    // 职责单一的目的：1.更好的复用代码。 2.避免改 BUG 修改代码影响其他业务逻辑，改出其他的 BUG。
+
+    /**
+     * 设置页面状态
+     * 1. state 中维护当前页面状态  2.设置表格状态
+     */
+    setPageStatus = (editmode = EDITMODE_BROWSE, callback = EMPTY_FN) => {
+        let tableid = this.state.table.area;
+        this.setState({ editmode: editmode }, () => this.props.editTable.setStatus(tableid, editmode, callback));
+    }
+
+    /**
+     * 按钮状态控制
+     */
+    updateBtnStatus = () => {
+
+        let isEdit = this.state.editmode == EDITMODE_EDIT; // 编辑态
+        let isBrowse = this.state.editmode == EDITMODE_BROWSE; // 浏览态
+
+        // 按钮显隐性控制
+        this.props.button.setButtonsVisible({
+            [ACTIONS.ADD]: true,
+            [ACTIONS.DELETE]: true,
+            [ACTIONS.EDIT]: isBrowse,
+            [ACTIONS.SAVE]: isEdit,
+            [ACTIONS.CANCEL]: isEdit,
+            [ACTIONS.REFRESH]: isBrowse,
+            [ACTIONS.COMMIT]: isBrowse,
+            [ACTIONS.UNCOMMIT]: isBrowse,
+            [ACTIONS.APPROVEDETAIL]: isBrowse,
+            [ACTIONS.IMPORT]: isBrowse,
+            [ACTIONS.EXPORT]: isBrowse,
+            [ACTIONS.PRINT]: isBrowse,
+            [ACTIONS.OUTPUT]: isBrowse,
+            [ACTIONS.ATTACHMENT]: isBrowse,
+            'set_lable': true,
+        });
+
+        let tableid = this.state.table.area;
+        let selectedRows = this.props.editTable.getCheckedRows(tableid);
+        let selectedCount = selectedRows ? selectedRows.length : 0; // 选中单据个数
+        let approveStatus = selectedRows && selectedRows.length > 0 && selectedRows[0].data.values[FIELDS.APPROVESTATUS].value || ''; // 审批状态
+
+        // 按钮禁用控制
+        this.props.button.setDisabled({
+            [ACTIONS.DELETE]: selectedCount == 0,
+            [ACTIONS.ATTACHMENT]: selectedCount == 0,
+            [ACTIONS.COMMIT]: selectedCount == 0 || (selectedCount == 1 && approveStatus != '-1'),
+            [ACTIONS.UNCOMMIT]: selectedCount == 0 || (selectedCount == 1 && approveStatus == '-1'),
+            [ACTIONS.APPROVEDETAIL]: selectedCount == 0,
+            [ACTIONS.PRINT]: selectedCount == 0,
+            [ACTIONS.OUTPUT]: selectedCount == 0,
+            'set_lable': false,
+        });
+
+        // 主按钮设置
+        this.props.button.setMainButton(ACTIONS.ADD, isBrowse);
+        this.props.button.setMainButton(ACTIONS.SAVE, isEdit);
+
+        // 表格行内按钮提示语设置
+        let content = isBrowse ? '确定要删除？' : '';
+        this.props.button.setPopContent(ACTIONS.DELETE, content);
+    }
+
+    /**
+     * 加载表格数据
+     * @param callback 回调函数
+     */
+    loadTableData = (callback = EMPTY_FN) => {
+
+        let { search, table } = this.state;
+        let queryInfo = this.props.search.getQueryInfo(search.area); // 查询条件
+        let pageInfo = this.props.editTable.getTablePageInfo(table.area); // 页面分页信息
+
+        ajax({
+            url: URLS.QueryUrl,
+            data: {
+                appcode: this.config.appcode,
+                pageCode: this.config.pagecode,
+                formId: table.area,
+                queryTreeFormatVO: { ...queryInfo, pageCode: this.config.pagecode },
+                pageInfo
+            },
+            success: res => callback(res.data && res.data.data || undefined)
+        });
+    };
+
+    /**
+     * 设置表格数据
+     * @param data 表格数据
+     * @param callback 回调函数
+     */
+    setTableData = (data, callback = EMPTY_FN) => {
+
+        let tableid = this.state.table.area;
+        let tableData = (data && data[tableid]) ? data[tableid] : { rows: [] }; // 表格数据
+        console.log("777777777777777777777777777777")
+        console.log(tableData)
+        tableData.rows.forEach(row => {
+            // 处理每一行数据
+
+            console.log(row.values.talent_tag.display)
+            row.values.talent_tag.display = row.values.talent_tag.value;
+
+        });
+        console.log("888888888888888888888888888888")
+        if (tableData.pageInfo) { // edittable pageIndex 设置前需要 + 1
+            tableData.pageInfo.pageIndex = parseInt(tableData.pageInfo.pageIndex) + 1;
+        }
+
+        this.props.editTable.setTableData(tableid, tableData); // 设置表格数据
+
+        callback(); // 执行回调函数
+    }
+
+    /**
+     * 加载默认值
+     * 1.新增行默认值
+     * 2.编码规则配置
+     * @param callback 回调函数
+     */
+    loadDefaultValue = (callback = EMPTY_FN) => {
+        let tableid = this.state.table.area;
+        let data = { // 获取新增行默认值请求参数
+            formId: this.state.table.area,
+            pageCode: this.config.pagecode,
+            // 工具生成的代码，所有节点保存参数统一按照一主多子的结构处理。单表的数据也要封装成一主多子的结构。
+            billCard: {
+                pageid: this.config.pagecode,
+                bodys: { [tableid]: { areaType: "table", areacode: tableid, pageinfo: null, rows: [{ values: {} }] } }
+            }
+        }
+        ajax({ // 请求后台获取默认值
+            url: URLS.AddUrl,
+            data,
+            success: res => callback(res.data || undefined)
+        });
+    }
+
+
+    // =============操作流程方法区=============
+    /**
+     * 按钮事件
+     * @param props 当前组件props
+     * @param btncode 当前点击按钮编码
+     * @param record 当前行数据（如果点击的是表格行按钮）
+     * @param index 当前行下标（如果点击的是表格行按钮）
+     */
+    onButtonClick = (props, btncode, record, index) => {
+        switch (btncode) {
+            case ACTIONS.ADD: // 新增
+                this.onAdd();
+                break;
+            case ACTIONS.EDIT: // 编辑
+                this.onEdit();
+                break;
+            case ACTIONS.DELETE: // 删除
+                record ? this.onRowDelete(record, index) : this.onDelete();
+                break;
+            case ACTIONS.SAVE: // 保存
+                this.onSave();
+                break;
+            case ACTIONS.CANCEL: // 取消
+                this.onCancel();
+                break;
+            case ACTIONS.REFRESH: // 刷新
+                this.onRefresh();
+                break;
+            case ACTIONS.ATTACHMENT: // 附件
+                this.onAttachment();
+                break;
+            case ACTIONS.PRINT: // 附件
+                this.onPrint();
+                break;
+            case ACTIONS.OUTPUT: // 输出
+                this.onOutPut();
+                break;
+            case ACTIONS.IMPORT: // 导入
+                break;
+            case ACTIONS.EXPORT: // 导出
+                this.onExport();
+                break;
+            case ACTIONS.COMMIT: // 提交
+                record ? this.onRowCommit(record, index) : this.onCommit();
+                break;
+            case ACTIONS.UNCOMMIT: // 收回
+                record ? this.onRowUnCommit(record, index) : this.onUnCommit();
+                break;
+            case ACTIONS.APPROVEDETAIL: // 审批详情
+                record ? this.onRowApproveDetail(record, index) : this.onApproveDetail();
+                break;
+            case 'set_lable':
+                let tableid = this.state.table.area;
+                let selectedData = this.props.editTable.getCheckedRows(tableid); // 选中数据
+                this.props.modal.show("demoModal");
+                break;
+
+
+            default:
+                break;
+        }
+    }
+
+    /**
+     * 新增按钮点击事件
+     */
+    onAdd = () => {
+        this.loadDefaultValue(data => { // 加载新增行默认值，传到回调函数的参数data中
+            this.setPageStatus(EDITMODE_EDIT, () => { // 设置页面状态
+                let tableid = this.state.table.area;
+                let num = this.props.editTable.getNumberOfRows(tableid); // 表格当前行数
+                // 后台返回的默认值
+                let rowValues = data.data && data.data.head[tableid].rows.length > 0 && data.data.head[tableid].rows[0].values || {};
+                let defaultValue = {};
+                Object.getOwnPropertyNames(rowValues).forEach(attr => {
+                    rowValues[attr].value && (defaultValue[attr] = rowValues[attr]); // 过滤掉空属性
+                });
+                // 设置当前用户业务中的默认业务单元
+                if (this.defaultOrg) {
+                    Object.assign(defaultValue, {
+                        pk_org: this.defaultOrg,
+                    });
+                }
+                this.props.editTable.addRow(tableid, num, true, defaultValue); // 增一行
+                // 单据编码相关
+                let billCodeContext = data.externalData && data.externalData.billCodeContext;
+                if (billCodeContext) {
+                    let { isPrecode, isEditable } = billCodeContext;
+                    if (!isPrecode || (isPrecode && !isEditable)) {
+                        // 以下两种情况单据号字段不可编辑：1.后编码；2.前编码设置为不可编辑。其余情况根据模板来定。
+                        this.props.editTable.setColEditableByKey(tableid, FIELDS.BILLCODE, true);
+                    }
+                }
+                this.updateBtnStatus(); // 更新按钮状态
+            });
+        });
+    }
+
+    /**
+     * 修改按钮点击事件
+     * 功能描述：页面状态设置为编辑态，并更新按钮状态
+     */
+    onEdit = () => {
+        let tableid = this.state.table.area;
+        this.loadDefaultValue(data => { // 加载默认值获取编码规则配置
+            // 单据编码相关
+            let billCodeContext = data.externalData && data.externalData.billCodeContext;
+            if (billCodeContext) {
+                let { isPrecode, isEditable } = billCodeContext;
+                if (!isPrecode || (isPrecode && !isEditable)) {
+                    // 以下两种情况单据号字段不可编辑：1.后编码；2.前编码设置为不可编辑。其余情况根据模板来定。
+                    this.props.editTable.setColEditableByKey(tableid, FIELDS.BILLCODE, true);
+                }
+            }
+            this.setPageStatus(EDITMODE_EDIT, this.updateBtnStatus);
+        });
+    }
+
+
+    /**
+     * 删除按钮点击事件
+     */
+    onDelete = () => {
+
+        let tableid = this.state.table.area;
+        let selectedData = this.props.editTable.getCheckedRows(tableid); // 选中数据
+        if (selectedData.length == 0) {
+            return; // 如果没有选中直接返回
+        }
+
+        // 审批状态校验
+        let hasUnFreeBill = selectedData.find(row => row.data.values[FIELDS.APPROVESTATUS].value != '-1'); // 是否存在非自由态单据
+        if (hasUnFreeBill) {
+            toast({ color: 'danger', content: '非自由态单据不能删除' });
+            return;
+        }
+        // 编辑态-删除：只是从页面上移除数据，保存时再调后台接口去删除
+        if (this.state.editmode == EDITMODE_EDIT) {
+            let indexArray = selectedData.map(d => d.index);
+            this.props.editTable.deleteTableRowsByIndex(tableid, indexArray); // 根据下标index删除表格行
+            this.updateBtnStatus(); // 更新按钮状态
+            return;
+        }
+
+        let rows = selectedData.map((row) => { // 封装删除行数据
+            return ({
+                rowId: row.data.rowId,
+                status: '3',
+                values: {
+                    ts: { value: row.data.values.ts.value },
+                    [FIELDS.PRIMARYKEY]: { value: row.data.values[FIELDS.PRIMARYKEY].value }
+                }
+            });
+        });
+
+        let data = { // 删除请求提交参数（跟保存一致）
+            formId: tableid,
+            pageCode: this.config.pagecode,
+            // 工具生成的代码，所有节点保存参数统一按照一主多子的结构处理。单表的数据也要封装成一主多子的结构。
+            billCard: {
+                pageid: this.config.pagecode,
+                bodys: { [tableid]: { areaType: "table", areacode: tableid, pageinfo: null, rows: rows || [] } }
+            }
+        };
+
+        promptBox({
+            color: 'warning',
+            title: '删除',
+            content: '确定要删除吗？',
+            noFooter: false,
+            noCancelBtn: false,
+            beSureBtnName: '确定',
+            cancelBtnName: '取消',
+            beSureBtnClick: () => { // 确认按钮回调事件
+                this.delete(data, (responseData) => {
+                    toast({ color: 'success', content: '删除成功' });
+                    this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+                });
+            }
+        });
+    }
+
+    /**
+     * 表体行删除
+     * @param record 当前删除行数据
+     * @param index 当前删除行下标
+     */
+    onRowDelete = (record, index) => {
+
+        let tableid = this.state.table.area;
+        if (this.state.editmode == EDITMODE_EDIT) { // 编辑态删除
+            this.props.editTable.deleteTableRowsByIndex(tableid, index); // 根据下标index删除表格行
+            return;
+        }
+
+        let row = { // 删除行数据
+            rowId: index,
+            status: '3',
+            values: {
+                ts: { value: record.values.ts.value },
+                [FIELDS.PRIMARYKEY]: { value: record.values[FIELDS.PRIMARYKEY].value }
+            }
+        };
+
+        let data = { // 删除请求提交参数（跟保存一致）
+            formId: tableid,
+            pageCode: this.config.pagecode,
+            // 工具生成的代码，所有节点保存参数统一按照一主多子的结构处理。单表的数据也要封装成一主多子的结构。
+            billCard: {
+                pageid: this.config.pagecode,
+                bodys: { [tableid]: { areaType: "table", areacode: tableid, pageinfo: null, rows: [row] } }
+            }
+        };
+
+        this.delete(data, (responseData) => { // 调用后端接口删除数据
+            toast({ color: 'success', content: '删除成功' }); // 删除提示语
+            this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+        });
+    }
+
+    /**
+     * 删除请求
+     * @param data 删除请求参数
+     * @param callback 回调函数
+     */
+    delete = (data, callback = EMPTY_FN) => {
+        ajax({
+            url: URLS.SaveUrl,
+            data,
+            success: res => callback(res.data && res.data.data || undefined)
+        });
+    }
+
+    /**
+     * 保存按钮点击事件
+     */
+    onSave = () => {
+
+        // 自动过滤空行，根据节点业务确定是否过滤
+        // this.props.editTable.filterEmptyRows(TABLEID,['字段编码1','字段编码1']);
+
+        // 处理有变动的行数据
+        let tableid = this.state.table.area;
+        let changedRows = this.props.editTable.getChangedRows(tableid);
+        if (!changedRows || changedRows.length == 0) {
+            this.setPageStatus(EDITMODE_BROWSE, () => {
+                this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+            });
+            return;
+        }
+
+        // 必输项校验
+        let allRows = this.props.editTable.getAllRows(tableid, true);
+        if (!this.props.editTable.checkRequired(tableid, allRows)) {
+            return;
+        }
+
+        let data = { // 保存请求提交参数
+            formId: tableid,
+            pageCode: this.config.pagecode,
+            // 工具生成的代码，所有节点保存参数统一按照一主多子的结构处理。单表的数据也要封装成一主多子的结构。
+            billCard: {
+                pageid: this.config.pagecode,
+                bodys: { [tableid]: { areaType: "table", areacode: tableid, pageinfo: null, rows: allRows || [] } }
+            }
+        };
+
+        let save = () => { // 保存请求
+            ajax({
+                url: URLS.SaveUrl,
+                data,
+                success: (res) => {
+                    toast({ color: 'success', content: '保存成功' });
+                    this.setPageStatus(EDITMODE_BROWSE, () => {
+                        this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+                    });
+                }
+            });
+        }
+
+        // 执行公式并保存
+        let validateData = { // 验证公式参数
+            pageid: this.config.pagecode,
+            model: { areaType: "table", areacode: tableid, pageinfo: null, rows: allRows || [] }
+        }
+        this.props.validateToSave(validateData, save, { [tableid]: 'table' }, 'grid');
+    }
+
+    /**
+     * 取消
+     */
+    onCancel = () => {
+        promptBox({ // 取消操作提示框
+            color: 'warning',
+            title: '取消',
+            content: '确定要取消吗？',
+            noFooter: false,
+            noCancelBtn: false,
+            beSureBtnName: '确定',
+            cancelBtnName: '取消',
+            beSureBtnClick: () => {
+                this.setPageStatus(EDITMODE_BROWSE, () => { // 设置页面状态
+                    this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+                });
+            }
+        });
+    }
+
+    /**
+     * 刷新
+     */
+    onRefresh = () => {
+        this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+        toast({ color: 'success', content: '刷新成功' });
+    }
+
+    /** 附件管理 */
+    onAttachment = () => {
+
+        this.state.ncUploader.show = true; // 显示附件管理组件
+
+        let selectedRows = this.props.editTable.getCheckedRows(this.state.table.area) || []; // 选中行数据
+        // 单据主键。如果多选，取第一张单据主键
+        let billID = selectedRows.length > 0 ? selectedRows[0].data.values[FIELDS.PRIMARYKEY].value : '';
+        this.state.ncUploader.billId = billID; // 附件唯一标识 = 单据主键
+
+        this.setState(this.state);
+    }
+
+    /** 打印 */
+    onPrint = () => {
+        let selectedRows = this.props.editTable.getCheckedRows(this.state.table.area) || []; // 选中行数据
+        // 获取选中数据的pk
+        let pks = selectedRows.length > 0 && selectedRows.map(row => row.data.values[FIELDS.PRIMARYKEY].value); // 单据主键
+        print('pdf', URLS.printUrl, {
+            funcode: this.config.appcode,
+            nodekey: this.state.printOutput.data.nodekey,
+            oids: pks
+        });
+    }
+
+    /** 输出 */
+    onOutPut = () => {
+
+        let selectedRows = this.props.editTable.getCheckedRows(this.state.table.area) || []; // 选中行
+        let pks = selectedRows.map(row => row.data.values[FIELDS.PRIMARYKEY].value); // 单据主键
+        this.state.printOutput.data.oids = pks;
+
+        this.setState(this.state, () => { this.refs.printOutput.open() });
+    }
+
+    /** 导出 */
+    onExport = () => {
+
+        let selectedRows = this.props.editTable.getCheckedRows(this.state.table.area) || []; // 选中行
+        let pks = selectedRows.map(row => row.data.values[FIELDS.PRIMARYKEY].value); // 导出单据主键
+        this.state.excelOutput.selectedPKS = pks;
+
+        this.setState(this.state, () => this.props.modal.show('exportFileModal')); // 显示Excel导出弹框
+    };
+
+    /** 表头批量提交 */
+    onCommit = () => {
+        let pkTsMap = {}; // key 为主键，value 为 TS
+        let selectedRows = this.props.editTable.getCheckedRows(this.state.table.area) || []; // 选中行
+        selectedRows.forEach(row => {
+            let pk = row.data.values[FIELDS.PRIMARYKEY].value;
+            let ts = row.data.values.ts.value;
+            pkTsMap[pk] = ts;
+        });
+
+        let params = {
+            actionName: 'SAVE', // 流程操作名称，提交是'SAVE',固定写法
+            pkTsMap: pkTsMap,
+            callback: () => {
+                toast({ color: 'success', content: '提交成功' }); // 提示语
+                this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+            }
+        }
+        this.flowOperation(params); // 调后端，执行流程操作
+    }
+
+    /** 表头批量收回 */
+    onUnCommit = () => {
+        let pkTsMap = {}; // key 为主键，value 为 TS
+        let selectedRows = this.props.editTable.getCheckedRows(this.state.table.area) || []; // 选中行
+        selectedRows.forEach(row => {
+            let pk = row.data.values[FIELDS.PRIMARYKEY].value;
+            let ts = row.data.values.ts.value;
+            pkTsMap[pk] = ts;
+        });
+
+        let params = {
+            actionName: 'UNSAVE', // 流程操作名称，收回是'UNSAVE',固定写法
+            pkTsMap: pkTsMap,
+            callback: () => {
+                toast({ color: 'success', content: '收回成功' });
+                this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+            }
+        }
+        this.flowOperation(params); // 调后端，执行流程操作
+    }
+
+    /**
+     * 表格行-提交
+     * @param record 当前行数据
+     * @param index 当前行下标
+     */
+    onRowCommit = (record, index) => {
+        let pk = record.values[FIELDS.PRIMARYKEY].value;
+        let ts = record.values.ts.value;
+        let pkTsMap = { [pk]: ts }; // key 为主键，value 为 TS
+        let params = {
+            actionName: 'SAVE', // 流程操作名称，提交是'SAVE',固定写法
+            pkTsMap: pkTsMap,
+            callback: () => {
+                toast({ color: 'success', content: '提交成功' });
+                this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+            }
+        }
+        this.flowOperation(params); // 调后端，执行流程操作
+    }
+
+    /**
+     * 表格行-收回
+     * @param record 当前行数据
+     * @param index 当前行下标
+     */
+    onRowUnCommit = (record, index) => {
+        let pk = record.values[FIELDS.PRIMARYKEY].value;
+        let ts = record.values.ts.value;
+        let pkTsMap = { [pk]: ts }; // key 为主键，value 为 TS
+        let params = {
+            actionName: 'UNSAVE', // 流程操作名称，收回是'UNSAVE',固定写法
+            pkTsMap: pkTsMap,
+            callback: () => {
+                toast({ color: 'success', content: '收回成功' });
+                this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+            }
+        }
+        this.flowOperation(params); // 调后端，执行流程操作
+    }
+
+    /**
+     * 指派 -> 提交
+     * @param data 指派提交请求
+     */
+    onAssignCommit = (data) => {
+
+        let rows = this.props.editTable.getCheckedRows(this.state.table.area) || [];
+        // 指派提交是单行操作
+        let pk = rows[0].data.values[FIELDS.PRIMARYKEY].value; // 单据主键
+        let ts = rows[0].data.values.ts.value; // 单据时间戳
+
+        let params = {
+            actionName: 'SAVE', // 流程操作名称，提交是'SAVE',固定写法
+            pkTsMap: { pk: ts },
+            assign: data,
+            callback: () => {
+                toast({ color: 'success', content: '提交成功' }); // 提示语
+                this.loadTableData((data) => this.setTableData(data, this.updateBtnStatus)); // 重新加载数据
+            }
+        }
+        this.flowOperation(params); // 调后端，执行流程操作
+    }
+
+    /** 表头-审批详情按钮点击事件 */
+    onApproveDetail = () => {
+        this.state.approveDetail.show = true; // 显示审批详情组件
+
+        let selectedRows = this.props.editTable.getCheckedRows(this.state.table.area) || []; // 选中行数据
+        let billID = selectedRows.length > 0 ? selectedRows[0].data.values[FIELDS.PRIMARYKEY].value : ''; // 单据主键
+        this.state.approveDetail.billid = billID;
+        let transtype = selectedRows.length > 0 ? selectedRows[0].data.values[FIELDS.TRANSTYPE].value : ''; // 交易类型
+        this.state.approveDetail.billtype = transtype || this.config.billType; // 如果没有交易类型，则取单据类型
+
+        this.setState(this.state);
+    };
+
+    /**
+     * 表体行-审批详情按钮点击事件
+     * @param record 当前行数据
+     * @param index 当前行下标
+     */
+    onRowApproveDetail = (record, index) => {
+        this.state.approveDetail.show = true; // 显示审批详情组件
+
+        let billID = record.values[FIELDS.PRIMARYKEY].value || ''; // 单据主键
+        this.state.approveDetail.billid = billID;
+        let transtype = record.values[FIELDS.TRANSTYPE].value || ''; // 交易类型
+        this.state.approveDetail.billtype = transtype || this.config.billType; // 如果没有交易类型，则取单据类型
+
+        this.setState(this.state);
+    }
+
+    /**
+     * 流程操作：提交、收回等
+     * @param {
+     *    actionName: 流程操作名，如：'SAVE'为提交；
+     *    pkTsMap: pk为key, ts为value 的 Map
+     *    assign: 如果是指派->提交有此参数，为指派信息，在state中维护，直接取即可；
+     *    callback: 回调函数
+     * }
+     */
+    flowOperation = (params = {}) => {
+
+        let { actionName, pkTsMap, assign, callback } = params;
+        let pks = Object.keys(pkTsMap);
+
+        if (!pks || pks.length == 0) {
+            toast({ color: 'warning', content: '请选择操作数据' });
+            return;
+        }
+        ajax({
+            url: URLS.AuditUrl,
+            data: {
+                actionName: actionName, // 流程操作名称，如：提交 'SAVE'、收回 'UNSAVE'
+                tsMap: pkTsMap, // key为单据主键，value为单据时间戳的 Map
+                assign: assign // 指派信息。如果没有指派设置，assign为空
+            },
+            success: (res) => {
+                // 存在指派环节，数据维护到 state即可。(指派功能已适配，只差这一步)
+                callback && callback(); // 不存在指派环节，直接执行回调函数，即提交成功
+            }
+        });
+    }
+
+
+    /** 选中行事件 */
+    onSelected = () => {
+        this.updateBtnStatus(); // 选中行后重新设置按钮状态
+    }
+
+    /** 选中所有行事件 */
+    onSelectedAll = () => {
+        this.updateBtnStatus(); // 选中所有行后重新设置按钮状态
+    }
+
+    /**
+     * 编辑前事件
+     * @param props
+     * @param moduleId 区域id
+     * @param item 模版当前列的项
+     * @param index 当前行index
+     * @param value 当前值
+     * @param record 行数据
+     */
+    onBeforeEvent = (props, moduleId, item, index, value, record) => {
+
+        // 编辑前事件使用案例: 编辑性设置。如：根据审批状态设置是否可编辑
+        let approveStatus = record.values[FIELDS.APPROVESTATUS].value || ''; // 审批状态
+        // 审批状态为非自由态的行，设置成不能编辑
+        if (!!approveStatus && approveStatus != '-1') {
+            this.props.editTable.setEditableRowByIndex(this.state.table.area, index, false);
+        }
+        // 编辑前事件使用案例: 参照过滤。如：交易类型要根据单据类型编码过滤
+        // if (item.attrcode == FIELDS.TRANSTYPEPK) { // 交易类型PK
+        //     let meta = props.meta.getMeta();
+        //     meta[this.state.table.area].items.forEach(item => {
+        //         if (item.attrcode == FIELDS.TRANSTYPEPK) {
+        //             item.queryCondition = () => {
+        //                 return { parentbilltype: this.config.billType }
+        //             }
+        //         }
+        //     });
+        //     this.props.meta.setMeta(meta);
+        //     return true;
+        // }
+        return true;
+    }
+
+    /**
+     * 编辑后事件
+     * @param props
+     * @param moduleId 区域id
+     * @param key 操作字段的编码
+     * @param value 当前值
+     * @param changedrows 新旧值集合
+     * @param index 当前行index
+     * @param record 行数据
+     */
+    onAfterEvent = (props, moduleId, key, value, changedrows, index, record) => {
+        switch (key) {
+            // 编辑后事件使用案例
+            case '编辑字段编码':
+                // 业务代码
+                break;
+            // 编辑后事件使用案例: 字段编辑后联动其他字段值
+            case FIELDS.TRANSTYPEPK: // 交易类型PK
+                // 选完交易类型参照后，自动填写交易类型编码字段
+                props.editTable.setValByKeyAndIndex(moduleId, index, FIELDS.TRANSTYPE, { value: value.refcode });
+                break;
+            default:
+                break;
+        }
+    }
+
+}
+
+ApplicationPage = createPage({
+    initTemplate: {},
+    billinfo: { billtype: 'grid', pagecode: 'WXHX0216_TalentPool', bodycode: 'TalentPool_table' },
+    mutiLangCode: 'WXHX0216'
+})(ApplicationPage);
+ReactDOM.render(<ApplicationPage />, document.querySelector("#app"));
